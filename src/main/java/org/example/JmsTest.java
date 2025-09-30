@@ -11,7 +11,7 @@ import java.util.List;
 public class JmsTest {
 
     private static final String BROKER_URL = "tcp://localhost:61616";
-    private static final String QUEUE_NAME = "TEST.QUEUE";
+    private static final String BASE_QUEUE_NAME = "TEST.QUEUE";
 
     public static void main(String[] args) throws Exception {
         List<Path> testFiles = List.of(
@@ -38,7 +38,10 @@ public class JmsTest {
             boolean transacted = (ackMode == Session.SESSION_TRANSACTED);
             Session session = connection.createSession(transacted, ackMode);
 
-            Destination queue = session.createQueue(QUEUE_NAME);
+            String queueName = BASE_QUEUE_NAME + "." + modeName;
+            Destination queue = session.createQueue(queueName);
+            // Очистка очереди перед тестом
+            //clearQueue(session, queue);
             MessageProducer producer = session.createProducer(queue);
             producer.setDeliveryMode(DeliveryMode.PERSISTENT);
 
@@ -73,6 +76,20 @@ public class JmsTest {
             System.out.println("Время выполнения (" + modeName + "): " + (endTime - startTime) + " ms");
 
             session.close();
+        }
+    }
+
+    private static void clearQueue(Session session, Destination queue) throws JMSException {
+        MessageConsumer consumer = session.createConsumer(queue);
+        int cleared = 0;
+        while (true) {
+            Message msg = consumer.receiveNoWait(); // non-blocking
+            if (msg == null) break;
+            cleared++;
+        }
+        consumer.close();
+        if (cleared >= 0) {
+            System.out.println("Очередь очищена, удалено сообщений: " + cleared);
         }
     }
 }
